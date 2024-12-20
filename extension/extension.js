@@ -21,18 +21,14 @@ Copyright (c) 2016 - 2018 Eric Goller / projecthamster <elbenfreund@projecthamst
 */
 
 
-const GLib = imports.gi.GLib;
-const Shell = imports.gi.Shell;
-const Meta = imports.gi.Meta;
-const Main = imports.ui.main;
-const Gio = imports.gi.Gio;
+import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
+import Meta from 'gi://Meta';
+import Gio from 'gi://Gio';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const Gettext = imports.gettext.domain('hamster-shell-extension');
-const _ = Gettext.gettext;
-
-const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
-const PanelWidget = Me.imports.widgets.panelWidget.PanelWidget;
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import PanelWidget from './widgets/panelWidget.js';
 
 // dbus-send --session --type=method_call --print-reply --dest=org.gnome.Hamster /org/gnome/Hamster org.freedesktop.DBus.Introspectable.Introspect
 const ApiProxyIface = ['',
@@ -92,11 +88,11 @@ let WindowsProxy = Gio.DBusProxy.makeProxyWrapper(WindowsProxyIface);
  *
  * @class
  */
-class Controller {
+export default class Controller extends Extension {
     constructor(extensionMeta) {
 	let dateMenu = Main.panel.statusArea.dateMenu;
 
-        this.extensionMeta = extensionMeta;
+        super(extensionMeta);
         this.panelWidget = null;
         this.settings = null;
         this.placement = 0;
@@ -120,13 +116,15 @@ class Controller {
     enable() {
         this.shouldEnable = true;
         new ApiProxy(Gio.DBus.session, 'org.gnome.Hamster', '/org/gnome/Hamster',
-                     function(proxy) {
+                     function(proxy, err) {
+                         this.reportIfError(_("Connection to DBUS service failed"), err);
 			 this.apiProxy = proxy;
 			 this.deferred_enable();
                      }.bind(this));
         new WindowsProxy(Gio.DBus.session, "org.gnome.Hamster.WindowServer",
 			 "/org/gnome/Hamster/WindowServer",
-			 function(proxy) {
+			 function(proxy, err) {
+                             this.reportIfError(_("Connection to DBUS window service failed"), err);
 			     this.windowsProxy = proxy;
 			     this.deferred_enable();
 			 }.bind(this));
@@ -138,7 +136,7 @@ class Controller {
         if (!this.shouldEnable || !this.apiProxy || !this.windowsProxy)
             return;
 
-        this.settings = ExtensionUtils.getSettings();
+        this.settings = this.getSettings();
         this.panelWidget = new PanelWidget(this);
         this.placement = this.settings.get_int("panel-placement");
 
@@ -146,23 +144,21 @@ class Controller {
 
         // Callbacks that handle appearing/vanishing dbus services.
         function apiProxy_appeared_callback() {
+            if (this.shouldEnable)
+                this.panelWidget.show();
         }
 
         function apiProxy_vanished_callback() {
 	    /* jshint validthis: true */
-            global.log(_("hamster-shell-extension: 'hamster-service' not running. Shutting down."));
-            Main.notify(_("hamster-shell-extension: 'hamster-service' not running. Shutting down."));
-            this.disable();
+            this.reportIfError(_("DBUS proxy disappeared"), _("Disabling extension until it comes back"));
+            if (this.shouldEnable)
+                this.panelWidget.hide();
         }
 
         function windowsProxy_appeared_callback() {
         }
 
         function windowsProxy_vanished_callback() {
-	    /* jshint validthis: true */
-            global.log(_("hamster-shell-extension: 'hamster-windows-service' not running. Shutting down."));
-            Main.notify(_("hamster-shell-extension: 'hamster-windows-service' not running. Shutting down."));
-            this.disable();
         }
 
         // Set-up watchers that watch for required dbus services.
@@ -191,7 +187,7 @@ class Controller {
         this.shouldEnable = false;
         Main.wm.removeKeybinding("show-hamster-dropdown");
 
-        global.log('Shutting down hamster-shell-extension.');
+        console.log('Shutting down hamster-shell-extension.');
         this._removeWidget(this.placement);
         Main.panel.menuManager.removeMenu(this.panelWidget.menu);
         this.panelWidget.destroy();
@@ -210,10 +206,27 @@ class Controller {
 
         this.runningActivitiesQuery = true;
         this.apiProxy.GetActivitiesRemote("", function([response], err) {
+            this.reportIfError(_("Failed to get activities"), err);
             this.runningActivitiesQuery = false;
             this.activities = response;
-            // global.log('ACTIVITIES HAMSTER: ', this.activities);
         }.bind(this));
+    }
+
+    /**
+     * Report an error if one is passed. If error is falsey (e.g.
+     * null), nothing is reported.
+     */
+    reportIfError(msg, error) {
+        if (error) {
+            // Use toString, error can be a string, exception, etc.
+            console.log("error: Hamster: " + msg + ": " + error.toString());
+            // Prefix msg to details (second argument), since the
+            // details are word-wrapped and the title is not.
+            Main.notify("Hamster: " + msg, msg + "\n" + error.toString());
+            // Close menu so notification can be seen
+            if (this.panelWidget)
+                this.panelWidget.close_menu();
+        }
     }
 
     /**
@@ -225,7 +238,7 @@ class Controller {
             // 'Replace calendar'
             Main.panel.addToStatusArea("hamster", this.panelWidget, 0, "center");
 
-            Main.panel._centerBox.remove_actor(dateMenu.container);
+            Main.panel._centerBox.remove_child(dateMenu.container);
             Main.panel._addToPanelBox('dateMenu', dateMenu, -1, Main.panel._rightBox);
         } else if (placement == 2) {
             // 'Replace activities'
@@ -248,27 +261,22 @@ class Controller {
     _removeWidget(placement) {
         if (placement == 1) {
             // We replaced the calendar
-            Main.panel._rightBox.remove_actor(dateMenu.container);
+            Main.panel._rightBox.remove_child(dateMenu.container);
             Main.panel._addToPanelBox(
                 'dateMenu',
                 dateMenu,
                 Main.sessionMode.panel.center.indexOf('dateMenu'),
                 Main.panel._centerBox
             );
-            Main.panel._centerBox.remove_actor(this.panelWidget.container);
+            Main.panel._centerBox.remove_child(this.panelWidget.container);
         } else if (placement == 2) {
             // We replaced the 'Activities' menu
             let activitiesMenu = Main.panel._leftBox.get_children()[0].get_children()[0].get_children()[0].get_children()[0];
             activitiesMenu.set_text(this._activitiesText);
-            Main.panel._leftBox.remove_actor(this.panelWidget.container);
+            Main.panel._leftBox.remove_child(this.panelWidget.container);
         } else {
-            Main.panel._rightBox.remove_actor(this.panelWidget.container);
+            Main.panel._rightBox.remove_child(this.panelWidget.container);
         }
     }
 }
 
-
-function init(extensionMeta) {
-    ExtensionUtils.initTranslations();
-    return new Controller(extensionMeta);
-}

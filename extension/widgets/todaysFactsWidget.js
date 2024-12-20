@@ -21,14 +21,14 @@ Copyright (c) 2016 - 2018 Eric Goller / projecthamster <elbenfreund@projecthamst
 */
 
 
-const St = imports.gi.St;
-const Clutter = imports.gi.Clutter;
-const GLib = imports.gi.GLib;
-const GObject = imports.gi.GObject;
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 
-const Me = imports.misc.extensionUtils.getCurrentExtension();
-const Stuff = Me.imports.stuff;
-
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Stuff from '../stuff.js';
+import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 
 /**
  * A widget that lists all facts for *today*.
@@ -48,8 +48,11 @@ class TodaysFactsWidget extends St.ScrollView {
             layout_manager: new Clutter.GridLayout(),
             reactive: true
         });
-        this.factsBox.add(this.facts_widget);
-        this.add_actor(this.factsBox);
+        this.factsBox.add_child(this.facts_widget);
+        if (Config.PACKAGE_VERSION.substring(0, 2) == "45")
+            this.add_actor(this.factsBox);
+        else
+            this.add_child(this.factsBox);
 
     }
 
@@ -114,6 +117,7 @@ class TodaysFactsWidget extends St.ScrollView {
 
 		/* jshint validthis: true */
                 controller.apiProxy.AddFactRemote(factStr, 0, 0, false, function(response, err) {
+                    controller.reportIfError(_("Failed to continue activity"), err);
                     // not interested in the new id - this shuts up the warning
                 }.bind(this));
                 menu.close();
@@ -191,3 +195,5 @@ class TodaysFactsWidget extends St.ScrollView {
         this.populateFactsWidget(facts, ongoingFact);
     }
 });
+
+export default TodaysFactsWidget;

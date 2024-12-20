@@ -21,15 +21,11 @@ Copyright (c) 2016 - 2018 Eric Goller / projecthamster <elbenfreund@projecthamst
 */
 
 
-const GObject = imports.gi.GObject;
-const St = imports.gi.St;
-const Clutter = imports.gi.Clutter;
+import GObject from 'gi://GObject';
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
 
-const Gettext = imports.gettext.domain('hamster-shell-extension');
-const _ = Gettext.gettext;
-
-const Me = imports.misc.extensionUtils.getCurrentExtension();
-
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 /**
  * Custom Entry widget that allows entering a *raw fact* string for a new ongoing fact.
@@ -71,6 +67,7 @@ class OngoingFactEntry extends St.Entry {
     _onEntryActivated() {
         let text = this.get_text();
         this._controller.apiProxy.AddFactRemote(text, 0, 0, false, function(response, error) {
+            this._controller.reportIfError(_("Failed to add activity"), error);
             // not interested in the new id - this shuts up the warning
 	}.bind(this));
         this.set_text('');
@@ -185,3 +182,5 @@ class OngoingFactEntry extends St.Entry {
         }
     }
 });
+
+export default OngoingFactEntry;

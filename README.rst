@@ -31,67 +31,52 @@ hamster`` which should bring up ``hamster-service`` and
 
 Install For Production
 ~~~~~~~~~~~~~~~~~~~~~~
-The extension is available on `the central extension repository <https://extensions.gnome.org/extension/425/project-hamster-extension>`_.
 
-Current compatible Gnome shell versions: 3.34, 3.36. *This version is not compatible
-with Gnome shell 3.32 and earlier.*
-For previous shell versions check `releases <https://github.com/projecthamster/hamster-shell-extension/tags>`_.
+Please follow the instructions under
+`Manual Installation For Testing and Development`_ below to install from git.
+See `metadata.json.in`_ for GNOME shell compatibility status of the current branch.
 
-Creating a development environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-As ``hamster-shell-extension`` is mainly simple JS there is not much of a development
-setup needed if you just want to get hacking right away. We do however provide
-a few convenience functionalities that make documenting and releasing the extension
-easier. For those purposes some additional python packages are required.
-The easiest and cleanest way to go about this is to create a new virtual environment and activate
-it::
+*Important:* The "Hamster Time Tracker" extension on
+`extensions.gnome.org https://extensions.gnome.org/extension/425/project-hamster-extension/`_
+is *severely outdated*; it supports GNOME shell up to 3.20 only. There are
+some other versions of this extension on extensions.gnome.org, but none of
+them is supported by the current maintainers of the extension.
 
-    python3 -m venv .venv
-    source .venv/bin/activate
-
-Now you are all setup to run ``make develop`` and related make targets without
-changing you main environment.
+.. _metadata.json.in: data/metadata.json.in
 
 Manual Installation For Testing and Development
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Clone the repository::
 
     git clone https://github.com/projecthamster/hamster-shell-extension.git
 
 Make sure you are on the development branch::
 
-    git checkout develop
+    git switch -c develop origin/develop
 
-Build a fresh distribution package::
+To make this build available locally under your user account::
+
+    make install-user
+
+To build a fresh distribution package (this will create a distributable archive located in the ``dist/`` folder)::
 
     make dist
 
-This will create a distributable archive located in the ``dist/`` folder.
+Afterwards, enable the extension and change the preferences using the
+*gnome-extensions* tool (on GNOME 3.34 and earlier, you need to use *gnome-tweak-tool*).
 
 
-**Shortcut on** ``develop``
+Reloading the Extension
+~~~~~~~~~~~~~~~~~~~~~~~
 
-If you are using the ``develop`` branch since May 2020, you can run ``make
-install-user`` to install your current working branch in your user environment
-or ``make install`` for a system-wide installation. The ``DESTDIR`` variable
-can be provided to ``make install`` to adjust the base installation path (it
-defaults to ``DESTDIR=/usr/local``).
-
-Otherwise, on other branches, follow the steps below to manually install the
-distribution archive::
-
-    # Build
-    make dist
-    # Remove any old installation
-    rm -rf ~/.local/share/gnome-shell/extensions/contact@projecthamster.org
-    # Create directory
-    mkdir -p ~/.local/share/gnome-shell/extensions/contact@projecthamster.org
-    # Unpack build
-    tar xfz dist/contact@projecthamster.org.tar.gz -C ~/.local/share/gnome-shell/extensions/contact@projecthamster.org
-
-Afterwards, enable the extension and change the preferences using Tweak Tool,
-or on ``https://extensions.gnome.org/local/``. On GNOME 3.36 and later, you
-can also use the GNOME "Extensions" tool.
+If the Hamster GNOME shell extension is already loaded and you change some code, 
+the GNOME shell needs to be restarted in order to update and restart the extension.
+The easiest way to do this is to run GNOME under X11 and use the key combination
+``Alt-F2`` followed by ``r``. If you run GNOME under Wayland, either re-login, or 
+start a `nested session <https://wiki.gnome.org/Initiatives/Wayland/GnomeShell/Testing>`_::
+    
+    dbus-run-session -- gnome-shell --nested --wayland
 
 Changing the extension UUID
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

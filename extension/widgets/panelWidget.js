@@ -21,20 +21,17 @@ Copyright (c) 2016 - 2018 Eric Goller / projecthamster <elbenfreund@projecthamst
 */
 
 
-const Gio = imports.gi.Gio;
-const GObject = imports.gi.GObject;
-const Clutter = imports.gi.Clutter;
-const PanelMenu = imports.ui.panelMenu;
-const St = imports.gi.St;
-const PopupMenu = imports.ui.popupMenu;
-const GLib = imports.gi.GLib;
+import Gio from 'gi://Gio';
+import GObject from 'gi://GObject';
+import Clutter from 'gi://Clutter';
+import St from 'gi://St';
+import GLib from 'gi://GLib';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-const Gettext = imports.gettext.domain('hamster-shell-extension');
-const _ = Gettext.gettext;
-
-const Me = imports.misc.extensionUtils.getCurrentExtension();
-const FactsBox = Me.imports.widgets.factsBox.FactsBox;
-const Stuff = Me.imports.stuff;
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import FactsBox from './factsBox.js';
+import * as Stuff from '../stuff.js';
 
 /**
  * Class that defines the actual extension widget to be shown in the panel.
@@ -65,7 +62,7 @@ class PanelWidget extends PanelMenu.Button {
         this._controller = controller;
         // [FIXME]
         // Still needed?
-        this._extensionMeta = controller.extensionMeta;
+        this._extensionMeta = controller.metadata;
         this._settings = controller.settings;
         this._windowsProxy = controller.windowsProxy;
 
@@ -78,7 +75,7 @@ class PanelWidget extends PanelMenu.Button {
         let panelContainer = new St.BoxLayout({style_class: "panel-box"});
 
 	let _actor = (this instanceof Clutter.Actor ? this : this.actor);
-        _actor.add_actor(panelContainer);
+        _actor.add_child(panelContainer);
         _actor.add_style_class_name('panel-status-button');
 
         this.panelLabel = new St.Label({
@@ -96,8 +93,8 @@ class PanelWidget extends PanelMenu.Button {
                                  icon_size: 16,
                                  style_class: "panel-icon"});
 
-        panelContainer.add(this.icon);
-        panelContainer.add(this.panelLabel);
+        panelContainer.add_child(this.icon);
+        panelContainer.add_child(this.panelLabel);
 
         this.factsBox = new FactsBox(controller, this);
         this.menu.addMenuItem(this.factsBox);
@@ -124,6 +121,11 @@ class PanelWidget extends PanelMenu.Button {
         let SettingMenuItem = new PopupMenu.PopupMenuItem(_("Tracking Settings"));
         SettingMenuItem.connect('activate', this._onOpenSettings.bind(this));
         this.menu.addMenuItem(SettingMenuItem);
+
+        let ExtSettingMenuItem = new PopupMenu.PopupMenuItem(_("Extension Settings"));
+        ExtSettingMenuItem.connect('activate',
+				   () => this._controller.openPreferences());
+        this.menu.addMenuItem(ExtSettingMenuItem);
 
         // focus menu upon display
         this.menu.connect('open-state-changed',
@@ -178,10 +180,8 @@ class PanelWidget extends PanelMenu.Button {
 
 		let facts = [];
 
-        // [FIXME]
-        // This seems a rather naive way to handle potential errors.
 		if (err) {
-		    log(err);
+                    this._controller.reportIfError(_("Failed to get activities"), err);
 		} else if (response.length > 0) {
 		    facts = Stuff.fromDbusFacts(response);
 		}
@@ -209,6 +209,12 @@ class PanelWidget extends PanelMenu.Button {
         this.menu.toggle();
     }
 
+    /**
+     * Close the 'popup menu'
+     */
+    close_menu() {
+        this.menu.close();
+    }
 
     /**
      * Update the rendering of the PanelWidget in the panel itself.
@@ -289,7 +295,9 @@ class PanelWidget extends PanelMenu.Button {
                                     now.getMinutes(),
                                     now.getSeconds());
         epochSeconds = Math.floor(epochSeconds / 1000);
-        this._controller.apiProxy.StopTrackingRemote(GLib.Variant.new('i', [epochSeconds]));
+        this._controller.apiProxy.StopTrackingRemote(GLib.Variant.new('i', [epochSeconds]), function(response, err) {
+            this._controller.reportIfError(_("Failed to stop tracking"), err);
+        }.bind(this));
     }
 
     /**
@@ -298,7 +306,11 @@ class PanelWidget extends PanelMenu.Button {
      * @callback panelWidget~_onOpenOverview
      */
     _onOpenOverview() {
-        this._controller.windowsProxy.overviewSync();
+        try {
+            this._controller.windowsProxy.overviewSync();
+        } catch (error) {
+            this._controller.reportIfError(_("Failed to open overview window"), error);
+        }
     }
 
     /**
@@ -307,7 +319,11 @@ class PanelWidget extends PanelMenu.Button {
      * @callback panelWidget~_onOpenAddFact
      */
     _onOpenAddFact() {
-        this._controller.windowsProxy.editSync(GLib.Variant.new('i', [0]));
+        try {
+            this._controller.windowsProxy.editSync(GLib.Variant.new('i', [0]));
+        } catch (error) {
+            this._controller.reportIfError(_("Failed to open add window"), error);
+        }
     }
 
     /**
@@ -318,6 +334,12 @@ class PanelWidget extends PanelMenu.Button {
      * Note: This will open the GUI settings, not the extension settings!
      */
     _onOpenSettings() {
-        this._controller.windowsProxy.preferencesSync();
+        try {
+            this._controller.windowsProxy.preferencesSync();
+        } catch (error) {
+            this._controller.reportIfError(_("Failed to open settings window"), error);
+        }
     }
 });
+
+export default PanelWidget;

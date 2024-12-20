@@ -21,32 +21,25 @@ Copyright (c) 2016 - 2018 Eric Goller / projecthamster <elbenfreund@projecthamst
 Copyright (c) 2018 Thibaut Madelaine <madtibo_git@tribu-ml.fr>
 */
 
-
-const Lang = imports.lang;
-const St = imports.gi.St;
-const Clutter = imports.gi.Clutter;
-const GLib = imports.gi.GLib;
-
-const Me = imports.misc.extensionUtils.getCurrentExtension();
-const Stuff = Me.imports.stuff;
-
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import * as Stuff from '../stuff.js';
 
 /**
  * Custom Label widget that displays total time.
  */
-var TotalTimeWidget = new Lang.Class({
-    Name: 'TotalTime',
-    Extends: St.Label,
-
-    _init: function() {
-        this.parent({style_class: 'summary-label'});
-
-    },
+var TotalTimeWidget = GObject.registerClass(
+  class TotalTime extends St.Label {
+    _init() {
+      super._init({style_class: 'summary-label'});
+    }
 
     /**
      * Recompute values and replace old string with new one based on passed facts.
      */
-    refresh: function(facts) {
+    refresh(facts) {
         /**
          * Construct a string representing today total.
          */
@@ -61,5 +54,7 @@ var TotalTimeWidget = new Lang.Class({
         }
 
         this.set_text(getString(facts));
-    },
+    }
 });
+
+export default TotalTimeWidget;
