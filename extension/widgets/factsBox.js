@@ -48,7 +48,7 @@ class FactsBox extends PopupMenu.PopupBaseMenuItem {
 
         // Setup main layout box
         let main_box = new St.BoxLayout({style_class: 'hamster-box'});
-        main_box.set_vertical(true);
+        Stuff.setVertical(main_box);
         this.actor.add_child(main_box);
 
         // Setup *ongoing fact* label and widget
@@ -68,12 +68,15 @@ class FactsBox extends PopupMenu.PopupBaseMenuItem {
         // Since ``St.Table`` does not implement St.Scrollable, we create a
         // container object that does.
         this.todaysFactsWidget = new TodaysFactsWidget(this._controller, panelWidget);
-        this._scrollAdjustment = this.todaysFactsWidget.vscroll.adjustment;
         main_box.add_child(this.todaysFactsWidget);
 
+        this._settings = controller.settings;
+
         // Setup category summery
-        this.summaryLabel = new CategoryTotalsWidget();
-        main_box.add_child(this.summaryLabel);
+        if (this._settings.get_boolean("show-summary")) {
+            this.summaryLabel = new CategoryTotalsWidget();
+            main_box.add_child(this.summaryLabel);
+        }
         // Setup total time
         this.totalTimeLabel = new TotalTimeWidget();
         main_box.add_child(this.totalTimeLabel);
@@ -86,7 +89,9 @@ class FactsBox extends PopupMenu.PopupBaseMenuItem {
     refresh(facts, ongoingFact) {
         this.todaysFactsWidget.refresh(facts, ongoingFact);
         this.totalTimeLabel.refresh(facts);
-        this.summaryLabel.refresh(facts);
+        if (this._settings.get_boolean("show-summary")) {
+            this.summaryLabel.refresh(facts);
+        }
 
     }
 
@@ -95,7 +100,8 @@ class FactsBox extends PopupMenu.PopupBaseMenuItem {
      */
     focus() {
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, function() {
-            this._scrollAdjustment.value = this._scrollAdjustment.upper;
+            let _vAdjustment = this.todaysFactsWidget.vadjustment;
+            _vAdjustment.value = _vAdjustment.upper;
             global.stage.set_key_focus(this.ongoingFactEntry);
         }.bind(this));
     }
